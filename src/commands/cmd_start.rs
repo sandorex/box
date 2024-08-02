@@ -79,7 +79,14 @@ pub fn start_container(engine: Engine, dry_run: bool, cli_args: &cli::CmdStartAr
     match engine.kind {
         // TODO add docker equivalent
         EngineKind::Podman => {
-            args.push("--userns=keep-id".into())
+            args.extend(vec![
+                "--userns=keep-id".into(),
+
+                // the default ulimit is low
+                "--ulimit".into(), "host".into(),
+
+                // TODO should i add --annotation run.oci.keep_original_groups=1
+            ]);
         },
         _ => {},
     }
