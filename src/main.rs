@@ -7,7 +7,7 @@ use std::process::ExitCode;
 use util::{Engine, find_available_engine};
 
 pub const VERSION: &'static str = env!("CARGO_PKG_VERSION");
-pub const FULL_VERSION: &'static str = concat!(env!("CARGO_PKG_VERSION"), env!("GIT_HASH"));
+pub const FULL_VERSION: &'static str = concat!(env!("CARGO_PKG_VERSION"), env!("GIT_DESCRIBE"));
 pub const DATA_VOLUME_NAME: &'static str = "box-data";
 
 fn main() -> ExitCode {
@@ -44,6 +44,12 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
+
+    // prevent running with docker for now
+    if let util::EngineKind::Docker = engine.kind {
+        eprintln!("Docker is not supported at the moment");
+        return ExitCode::FAILURE
+    }
 
     use cli::CliCommands;
     match args.cmd {

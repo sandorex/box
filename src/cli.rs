@@ -24,6 +24,10 @@ pub struct CmdStartArgs {
     #[arg(short, long)]
     pub env: Vec<String>,
 
+    /// Name of the new container (if not set a randomly generated name will be used)
+    #[arg(long)]
+    pub name: Option<String>,
+
     /// Path to dotfiles which will be used as /etc/skel inside the container
     #[arg(long, env = "BOX_DOTFILES")]
     pub dotfiles: Option<PathBuf>,
