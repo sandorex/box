@@ -12,10 +12,6 @@ pub const FULL_VERSION: &'static str = concat!(env!("CARGO_PKG_VERSION"), env!("
 pub const DATA_VOLUME_NAME: &'static str = "box-data";
 
 fn main() -> ExitCode {
-    config::test();
-
-    return ExitCode::SUCCESS;
-
     let args = cli::Cli::parse();
 
     // init does not need engine, just get it from environment if needed

@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
+use crate::cli;
+use crate::util;
 
 #[derive(Debug)]
 struct GenericConfigError(String);
@@ -47,7 +49,6 @@ impl ConfigFile {
     }
 }
 
-
 /// Single configuration for a container, contains default settings and optional settings per
 /// engine that get applied over the default settings
 #[derive(Debug, Clone, Default, PartialEq, Deserialize, Serialize)]
@@ -60,12 +61,18 @@ pub struct Config {
     pub image: String,
 
     /// Optional name to set for the container, otherwise randomly generated
-    #[serde(default)]
-    pub container_name: String,
+    pub container_name: Option<String>,
 
     /// Dotfiles directory to use as /etc/skel
+    pub dotfiles: Option<String>,
+
+    /// Should data volume be mounted
     #[serde(default)]
-    pub dotfiles: String,
+    pub data_volume: bool,
+
+    /// Should the container have access to internet
+    #[serde(default)]
+    pub network: bool,
 
     /// Default setting used regardless of the engine
     #[serde(default)]
@@ -81,13 +88,29 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn get_merged_engine_config(&self, engine: crate::util::EngineKind) -> EngineConfig {
-        let engine_config = match engine {
-            crate::util::EngineKind::Podman => &self.podman,
-            crate::util::EngineKind::Docker => &self.docker,
+    pub fn to_cli_args(&self, engine: &util::Engine) -> cli::CmdStartArgs {
+        let engine_config = match engine.kind {
+            util::EngineKind::Podman => &self.podman,
+            util::EngineKind::Docker => &self.docker,
         };
 
-        self.default.clone() + engine_config.clone()
+        // TODO add together the engine confgi
+        let mut config = self.default.clone();
+        config.engine_args.extend(engine_config.engine_args.clone());
+        config.capabilities.extend(engine_config.capabilities.clone());
+        config.env.extend(engine_config.env.clone());
+
+        cli::CmdStartArgs {
+            image: self.image.clone(),
+            name: self.container_name.clone(),
+            dotfiles: self.dotfiles.clone().map(|x| std::path::PathBuf::from(x)),
+            data_volume: self.data_volume,
+            network: self.network,
+
+            engine_args: config.engine_args,
+            capabilities: config.capabilities,
+            env: config.env.iter().map(|(k, v)| format!("{k}={v}")).collect::<Vec<String>>(),
+        }
     }
 }
 
@@ -110,25 +133,6 @@ pub struct EngineConfig {
     /// Environment variables to set
     #[serde(default)]
     pub env: HashMap<String, String>
-}
-
-impl std::ops::Add for EngineConfig {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        // offload all the logic to AddAssign
-        let mut result = self.clone();
-        result += rhs;
-        result
-    }
-}
-
-impl std::ops::AddAssign for EngineConfig {
-    fn add_assign(&mut self, rhs: Self) {
-        self.engine_args.extend(rhs.engine_args.into_iter());
-        self.capabilities.extend(rhs.capabilities.into_iter());
-        self.env.extend(rhs.env.into_iter())
-    }
 }
 
 /// Load and merge configs from directory (loads *.toml file)
@@ -187,69 +191,13 @@ mod tests {
             image: Default::default(),
             container_name: Default::default(),
             dotfiles: Default::default(),
+            data_volume: Default::default(),
+            network: Default::default(),
 
             default: Default::default(),
             podman: Default::default(),
             docker: Default::default(),
         };
-    }
-
-    #[test]
-    fn add() {
-        let a = EngineConfig {
-            engine_args: vec!["aa".into()],
-            capabilities: vec!["aa".into()],
-            env: HashMap::from([
-                ("a".into(), "b".into()),
-            ]),
-        };
-
-        let b = EngineConfig {
-            engine_args: vec!["bb".into()],
-            capabilities: vec!["bb".into()],
-            env: HashMap::from([
-                ("c".into(), "d".into()),
-            ]),
-        };
-
-        assert_eq!(a + b, EngineConfig {
-            engine_args: vec!["aa".into(), "bb".into()],
-            capabilities: vec!["aa".into(), "bb".into()],
-            env: HashMap::from([
-                ("a".into(), "b".into()),
-                ("c".into(), "d".into()),
-            ]),
-        });
-    }
-
-    #[test]
-    fn add_assign() {
-        let mut a = EngineConfig {
-            engine_args: vec!["aa".into()],
-            capabilities: vec!["aa".into()],
-            env: HashMap::from([
-                ("a".into(), "b".into()),
-            ]),
-        };
-
-        let b = EngineConfig {
-            engine_args: vec!["bb".into()],
-            capabilities: vec!["bb".into()],
-            env: HashMap::from([
-                ("c".into(), "d".into()),
-            ]),
-        };
-
-        a += b;
-
-        assert_eq!(a, EngineConfig {
-            engine_args: vec!["aa".into(), "bb".into()],
-            capabilities: vec!["aa".into(), "bb".into()],
-            env: HashMap::from([
-                ("a".into(), "b".into()),
-                ("c".into(), "d".into()),
-            ]),
-        });
     }
 
     #[test]
@@ -300,87 +248,5 @@ engine_args = [ "docker" ]
             ]),
         });
     }
-
-    #[test]
-    fn get_merged_engine_config() {
-        use crate::util::EngineKind;
-
-        {
-            // sanity test basically?
-            let a = Config {
-                ..Default::default()
-            };
-
-            assert_eq!(a.get_merged_engine_config(EngineKind::Podman), a.default);
-            assert_eq!(a.get_merged_engine_config(EngineKind::Docker), a.default);
-        }
-
-        {
-            let a = Config {
-                default: EngineConfig {
-                    engine_args: vec!["aa".into()],
-                    ..Default::default()
-                },
-                ..Default::default()
-            };
-
-            assert_eq!(a.get_merged_engine_config(EngineKind::Podman), a.default);
-            assert_eq!(a.get_merged_engine_config(EngineKind::Docker), a.default);
-        }
-
-        {
-            // TODO Add all the props here
-            let a = Config {
-                default: EngineConfig {
-                    engine_args: vec!["aa".into()],
-                    ..Default::default()
-                },
-                podman: EngineConfig {
-                    engine_args: vec!["bb".into()],
-                    ..Default::default()
-                },
-                docker: EngineConfig {
-                    engine_args: vec!["cc".into()],
-                    ..Default::default()
-                },
-                ..Default::default()
-            };
-
-            assert_eq!(
-                a.get_merged_engine_config(EngineKind::Podman),
-                EngineConfig {
-                    engine_args: vec!["aa".into(), "bb".into()],
-                    ..Default::default()
-                }
-            );
-
-            assert_eq!(
-                a.get_merged_engine_config(EngineKind::Docker),
-                EngineConfig {
-                    engine_args: vec!["aa".into(), "cc".into()],
-                    ..Default::default()
-                }
-            );
-        }
-    }
-}
-
-pub fn test() {
-    let s = r#"
-
-[[config]]
-name = "fuck"
-image = "fedora"
-
-[config.podman]
-engine_args = ["--env X=1"]
-
-"#;
-
-    // TODO print error nicely
-    let obj = ConfigFile::load_from_str(s).unwrap();
-    // let obj = load_from_dir(std::env::current_dir().unwrap().display().to_string().as_str()).unwrap();
-
-    println!("got: {:#?}", obj);
 }
 

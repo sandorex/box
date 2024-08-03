@@ -38,21 +38,18 @@ pub struct CmdStartArgs {
     #[arg(long = "cap")]
     pub capabilities: Vec<String>,
 
-    // TODO
     /// Pass args to engine verbatim
     #[arg(long)]
     pub engine_args: Vec<String>,
 
-    // TODO maybe remove this and move to the toml config?
     /// Do not mount data volume inside the container
-    #[arg(long, action)]
-    pub no_data_volume: bool,
+    #[arg(long = "no-data", action = clap::ArgAction::SetFalse)]
+    pub data_volume: bool,
 
     /// Disable network access for the container
-    #[arg(long, action)]
-    pub no_network: bool,
+    #[arg(long = "no-network", action = clap::ArgAction::SetFalse)]
+    pub network: bool,
 
-    // TODO make it possible to use @config to run configuration from a file
     /// Container image to use
     #[arg(env = "BOX_IMAGE")]
     pub image: String,
@@ -104,14 +101,6 @@ pub struct CmdKillArgs {
     pub container: String,
 }
 
-// #[derive(Subcommand, Debug)]
-// pub enum CliExtraCommands {
-//     /// Prints shell aliases
-//     ///
-//     /// Use like `eval "$(box extras shell-aliases)"` or add to shell init
-//     ShellAliases,
-// }
-
 #[derive(Subcommand, Debug)]
 pub enum CliCommands {
     /// Start a container in current directory, mounting it as the rw workspace
@@ -138,12 +127,6 @@ pub enum CliCommands {
     /// Stop running containers managed by box
     #[command(arg_required_else_help = true)]
     Kill(CmdKillArgs),
-
-    // #[command(arg_required_else_help = true)]
-    // Extras {
-    //     #[clap(subcommand)]
-    //     subcommand: CliExtraCommands,
-    // },
 
     /// Init command used to setup the container
     #[command(hide = true)]

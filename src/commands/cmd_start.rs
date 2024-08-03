@@ -42,6 +42,10 @@ pub fn start_container(engine: Engine, dry_run: bool, cli_args: &cli::CmdStartAr
     let cwd = std::env::current_dir().expect("Failed to get current directory");
     let executable_path = std::env::current_exe().expect("Failed to get executable path");
 
+    // TODO test if image is @something and then load the configs
+    // get the correct one
+    // merge with cli being the priority for flags
+
     // generate a name if not provided already
     let container_name = match &cli_args.name {
         Some(x) => x.clone(),
@@ -70,6 +74,7 @@ pub fn start_container(engine: Engine, dry_run: bool, cli_args: &cli::CmdStartAr
         "--label=box=box".into(),
         "--env".into(), "BOX=BOX".into(),
         "--env".into(), format!("BOX_VERSION={}", VERSION),
+        "--env".into(), format!("BOX_ENGINE={:?}", engine.kind),
         "--env".into(), format!("BOX_USER={}", util::get_user()),
         "--volume".into(), format!("{}:/box:ro", executable_path.display()),
         "--volume".into(), format!("{}:/ws", &cwd.to_string_lossy()),
@@ -108,8 +113,7 @@ pub fn start_container(engine: Engine, dry_run: bool, cli_args: &cli::CmdStartAr
     // find all terminfo dirs, they differ mostly on debian...
     find_terminfo(&mut args);
 
-    // TODO change this to data_volume so its not confusing with the negation
-    if ! cli_args.no_data_volume {
+    if cli_args.data_volume {
         let inspect_cmd = Command::new(&engine.path)
             .args(&["volume", "inspect", DATA_VOLUME_NAME])
             .output()
@@ -135,8 +139,7 @@ pub fn start_container(engine: Engine, dry_run: bool, cli_args: &cli::CmdStartAr
     }
 
     // disable network if requested
-    // TODO make it network and negate in --network/--no-network
-    if cli_args.no_network {
+    if ! cli_args.network {
         args.push("--network=none".into());
     }
 
@@ -172,6 +175,5 @@ pub fn start_container(engine: Engine, dry_run: bool, cli_args: &cli::CmdStartAr
     }
 
     // TODO add interactive version where i can see output from the container, maybe podman logs -f
-    // TODO print user friendly name
 }
 

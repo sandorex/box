@@ -32,7 +32,7 @@ impl TryFrom<String> for EngineKind {
     type Error = ();
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        match value.as_str() {
+        match value.to_lowercase().as_str() {
             "podman" => Ok(Self::Podman),
             "docker" => Ok(Self::Docker),
             _ => Err(()),
