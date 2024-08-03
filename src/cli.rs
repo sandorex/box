@@ -45,7 +45,7 @@ pub struct CmdStartArgs {
 
     // TODO maybe remove this and move to the toml config?
     /// Do not mount data volume inside the container
-    #[arg(long, action, env = "BOX_NO_DATA_VOLUME")]
+    #[arg(long, action)]
     pub no_data_volume: bool,
 
     /// Disable network access for the container
