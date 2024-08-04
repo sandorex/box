@@ -4,19 +4,38 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
-use crate::cli;
-use crate::util;
 
 #[derive(Debug)]
-struct GenericConfigError(String);
+pub enum ConfigError {
+    Message(String),
+    Generic(Box<dyn Error>),
+    File(String, Box<dyn Error>),
+}
 
-impl fmt::Display for GenericConfigError {
+impl fmt::Display for ConfigError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
+        match self {
+            Self::Message(msg) => write!(f, "{}", msg),
+            Self::Generic(x) => x.fmt(f),
+            Self::File(file, err) => {
+                write!(f, "Config error in file {}: ", file)?;
+                err.fmt(f)?;
+
+                Ok(())
+            },
+        }
     }
 }
 
-impl Error for GenericConfigError {}
+impl Error for ConfigError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Message(_) => None,
+            Self::Generic(x) => Some(x.as_ref()),
+            Self::File(_, x) => Some(x.as_ref()),
+        }
+    }
+}
 
 /// Whole config file
 #[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
@@ -30,22 +49,26 @@ pub struct ConfigFile {
 
 impl ConfigFile {
     /// Loads config from str, path is just for error message and can be anything
-    pub fn load_from_str(text: &str) -> Result<Self, Box<dyn Error>> {
-        let obj = toml::from_str::<ConfigFile>(text)?;
+    pub fn load_from_str(text: &str) -> Result<Self, ConfigError> {
+        let obj = toml::from_str::<ConfigFile>(text)
+            .map_err(|err| ConfigError::Generic(Box::new(err)) )?;
 
         let version = obj.version.unwrap_or(1);
         if version != 1 {
             return Err(
-                Box::new(GenericConfigError(format!("Invalid schema version {}", version)))
+                ConfigError::Message(format!("Invalid schema version {}", version)),
             )
         }
 
         Ok(obj)
     }
 
-    pub fn load_from_file(path: &str) -> Result<Self, Box<dyn Error>> {
-        let file_contents = std::fs::read_to_string(path)?;
+    pub fn load_from_file(path: &str) -> Result<Self, ConfigError> {
+        let file_contents = std::fs::read_to_string(path)
+            .map_err(|err| ConfigError::File(path.to_string(), Box::new(err)))?;
+
         Self::load_from_str(&file_contents)
+            .map_err(|err| ConfigError::File(path.to_string(), Box::new(err)))
     }
 }
 
@@ -87,6 +110,15 @@ pub struct Config {
     pub docker: EngineConfig,
 }
 
+impl Config {
+    pub fn get_engine_config(&self, engine: &crate::util::Engine) -> &EngineConfig {
+        match &engine.kind {
+            crate::util::EngineKind::Podman => &self.podman,
+            crate::util::EngineKind::Docker => &self.docker,
+        }
+    }
+}
+
 // TODO create conversion between cli args and this, so one could generate it from cmd args
 /// Container arguments for specific engine
 #[derive(Debug, Clone, Default, PartialEq, Deserialize, Serialize)]
@@ -109,12 +141,12 @@ pub struct EngineConfig {
 }
 
 /// Load and merge configs from directory (loads *.toml file)
-pub fn load_from_dir(path: &str) -> Result<HashMap<String, Config>, Box<dyn Error>> {
-    // NOTE there is no handling of different versions here yet
+pub fn load_from_dir(path: &str) -> Result<HashMap<String, Config>, ConfigError> {
     let mut configs: HashMap<String, Config> = HashMap::new();
 
     let toml_files: Vec<std::path::PathBuf> = std::path::Path::new(path)
-        .read_dir()?
+        .read_dir()
+        .map_err(|err| ConfigError::Message(format!("Error reading config directory {}: {}", path, err)))?
         .map(|x| x.unwrap().path() )
         .filter(|x| x.extension().unwrap_or_default() == "toml")
         .collect();
@@ -147,9 +179,9 @@ mod tests {
         // NOTE if this fails then check everything else as there many places with ..default and it
         // will not warn about unused props
         let _ = EngineConfig {
-           engine_args: vec![],
-           capabilities: vec![],
-           env: HashMap::new(),
+           engine_args: Default::default(),
+           capabilities: Default::default(),
+           env: Default::default(),
         };
 
         let _ = Config {

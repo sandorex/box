@@ -77,12 +77,6 @@ pub fn print_cmd_dry_run(engine: &Engine, args: Vec<String>) {
     println!();
 }
 
-#[cfg(target_os = "linux")]
-pub fn home_dir() -> String {
-    // panic as this really should not happen on linux
-    std::env::var("HOME").expect("Failed to get HOME dir from env var")
-}
-
 /// Get app configuration directory
 pub fn app_dir() -> PathBuf {
     const BOX_DIR: &'static str = "box";
@@ -92,7 +86,15 @@ pub fn app_dir() -> PathBuf {
         Ok(x) => PathBuf::from(x),
         Err(_) => {
             // respect XDG standard
-            let xdg_config_home = std::env::var("XDG_CONFIG_HOME").unwrap_or_else(|_| "~/.config".to_string());
+            let xdg_config_home = match std::env::var("XDG_CONFIG_HOME") {
+                Ok(x) => x,
+                // fallback to ~/.config
+                Err(_) => {
+                    let home = std::env::var("HOME").expect("Failed to get HOME dir from env var");
+
+                    PathBuf::from(home).join(".config").to_str().unwrap().to_string()
+                },
+            };
 
             PathBuf::from(xdg_config_home).join(BOX_DIR)
         },
@@ -111,7 +113,6 @@ pub fn load_configs() -> Option<HashMap<String, crate::config::Config>> {
     match config::load_from_dir(config_dir().to_str().unwrap()) {
         Ok(x) => Some(x),
         Err(err) => {
-            eprintln!("Error while parsing configs:");
             eprintln!("{}\n", err);
 
             None

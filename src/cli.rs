@@ -1,5 +1,4 @@
 use clap::{Parser, Subcommand, Args};
-use std::path::PathBuf;
 use crate::FULL_VERSION;
 
 /// Sandboxed pet container manager
@@ -20,27 +19,13 @@ pub struct Cli {
 
 #[derive(Args, Debug, Clone, Default)]
 pub struct CmdStartArgs {
-    /// Environment variables to set inside the container
-    #[arg(short, long, value_name = "VAR=VALUE")]
-    pub env: Vec<String>,
-
     /// Name of the new container (if not set a randomly generated name will be used)
     #[arg(long)]
     pub name: Option<String>,
 
     /// Path to dotfiles which will be used as /etc/skel inside the container
     #[arg(long, env = "BOX_DOTFILES")]
-    pub dotfiles: Option<PathBuf>,
-
-    /// Add or drop capabilities by prefixing them with '!'
-    ///
-    /// For more details about capabilities read `man 7 capabilities` or box wiki
-    #[arg(long = "cap")]
-    pub capabilities: Vec<String>,
-
-    /// Pass args to engine verbatim
-    #[arg(long)]
-    pub engine_args: Vec<String>,
+    pub dotfiles: Option<String>,
 
     // TODO data_volume and network should be --network/--no-network and --no-data-volume/--data-volume
     // but https://github.com/clap-rs/clap/issues/815
@@ -52,6 +37,20 @@ pub struct CmdStartArgs {
     /// Set network access permission for the container
     #[arg(long, value_name = "BOOL", default_missing_value = "true", require_equals = true, num_args = 0..=1)]
     pub network: Option<bool>,
+
+    /// Pass args to engine verbatim
+    #[arg(long)]
+    pub engine_args: Vec<String>,
+
+    /// Add or drop capabilities by prefixing them with '!'
+    ///
+    /// For more details about capabilities read `man 7 capabilities` or box wiki
+    #[arg(long = "cap")]
+    pub capabilities: Vec<String>,
+
+    /// Environment variables to set inside the container
+    #[arg(short, long, value_name = "VAR=VALUE")]
+    pub env: Vec<String>,
 
     /// Container image to use or @config
     #[arg(env = "BOX_IMAGE")]

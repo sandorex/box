@@ -2,7 +2,6 @@ use crate::{VERSION, DATA_VOLUME_NAME};
 use crate::util::{self, CommandOutputExt, Engine, EngineKind};
 use crate::cli;
 use std::process::{Command, ExitCode};
-use crate::config::load_from_dir;
 
 // Finds all terminfo directories on host so they can be mounted in the container so no terminfo
 // installing is required
@@ -39,19 +38,53 @@ fn find_terminfo(args: &mut Vec<String>) {
     args.extend(vec!["--env".into(), format!("TERMINFO_DIRS={}", terminfo_env)]);
 }
 
-pub fn start_container(engine: Engine, dry_run: bool, cli_args: &cli::CmdStartArgs) -> ExitCode {
+pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStartArgs) -> ExitCode {
     let cwd = std::env::current_dir().expect("Failed to get current directory");
     let executable_path = std::env::current_exe().expect("Failed to get executable path");
 
     // handle configs
     if cli_args.image.starts_with("@") {
+        // load all configs
         let configs = match util::load_configs() {
             Some(x) => x,
             None => return ExitCode::FAILURE,
         };
 
-        return ExitCode::SUCCESS;
-        // TODO load configs
+        // find the config
+        let config = match configs.get(&cli_args.image[1..]) {
+            Some(x) => x,
+            None => {
+                eprintln!("Could not find config {}", cli_args.image);
+
+                return ExitCode::FAILURE;
+            }
+        };
+
+        // take image from config
+        cli_args.image = config.image.clone();
+
+        // prefer cli data volume
+        cli_args.data_volume = cli_args.data_volume.or_else(|| Some(config.data_volume));
+
+        // prefer cli network
+        cli_args.network = cli_args.network.or_else(|| Some(config.network));
+
+        // prefer cli name
+        cli_args.name = cli_args.name.or_else(|| config.container_name.clone());
+
+        // prefer cli dotfiles
+        cli_args.dotfiles = cli_args.dotfiles.or_else(|| config.dotfiles.clone());
+
+        let engine_config = config.get_engine_config(&engine);
+
+        cli_args.capabilities.extend(config.default.capabilities.clone());
+        cli_args.capabilities.extend(engine_config.capabilities.clone());
+
+        cli_args.engine_args.extend(config.default.engine_args.clone());
+        cli_args.engine_args.extend(engine_config.engine_args.clone());
+
+        cli_args.env.extend(config.default.env.clone().iter().map(|(k, v)| format!("{k}={v}")));
+        cli_args.env.extend(engine_config.env.clone().iter().map(|(k, v)| format!("{k}={v}")));
     }
 
     // TODO test if image is @something and then load the configs
@@ -157,7 +190,7 @@ pub fn start_container(engine: Engine, dry_run: bool, cli_args: &cli::CmdStartAr
 
     // mount dotfiles if provided
     if let Some(dotfiles) = &cli_args.dotfiles {
-        args.extend(vec!["--volume".into(), format!("{}:/etc/skel:ro", dotfiles.display())]);
+        args.extend(vec!["--volume".into(), format!("{}:/etc/skel:ro", dotfiles)]);
     }
 
     // add the extra args verbatim

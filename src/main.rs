@@ -54,7 +54,7 @@ fn main() -> ExitCode {
 
     use cli::CliCommands;
     match args.cmd {
-        CliCommands::Start(x) => commands::start_container(engine, args.dry_run, &x),
+        CliCommands::Start(x) => commands::start_container(engine, args.dry_run, x),
         CliCommands::Shell(x) => commands::open_shell(engine, args.dry_run, &x),
         CliCommands::Exec(x) => commands::container_exec(engine, args.dry_run, &x),
         CliCommands::Exists(x) => commands::container_exists(engine, &x),
