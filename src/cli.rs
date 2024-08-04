@@ -30,20 +30,10 @@ pub struct CmdStartArgs {
     #[arg(long, env = "BOX_DOTFILES")]
     pub dotfiles: Option<String>,
 
-    // TODO data_volume and network should be --network/--no-network and --no-data-volume/--data-volume
-    // but https://github.com/clap-rs/clap/issues/815
-
-    /// Should the data volume be mounted inside the container
-    #[arg(long, value_name = "BOOL", default_missing_value = "true", require_equals = true, num_args = 0..=1)]
-    pub data_volume: Option<bool>,
-
+    // TODO network should be --network/--no-network (https://github.com/clap-rs/clap/issues/815)
     /// Set network access permission for the container
     #[arg(long, value_name = "BOOL", default_missing_value = "true", require_equals = true, num_args = 0..=1)]
     pub network: Option<bool>,
-
-    /// Pass args to engine verbatim
-    #[arg(long)]
-    pub engine_args: Vec<String>,
 
     /// Add or drop capabilities by prefixing them with '!'
     ///
@@ -58,6 +48,10 @@ pub struct CmdStartArgs {
     /// Container image to use or @config
     #[arg(env = "BOX_IMAGE")]
     pub image: String,
+
+    /// Pass rest of args to engine verbatim
+    #[arg(last = true)]
+    pub engine_args: Vec<String>,
 }
 
 #[derive(Args, Debug, Clone)]

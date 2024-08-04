@@ -9,7 +9,6 @@ use util::Engine;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const FULL_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), env!("GIT_DESCRIBE"));
-pub const DATA_VOLUME_NAME: &str = "box-data";
 
 fn main() -> ExitCode {
     let args = cli::Cli::parse();

@@ -89,10 +89,6 @@ pub struct Config {
     /// Dotfiles directory to use as /etc/skel
     pub dotfiles: Option<String>,
 
-    /// Should data volume be mounted
-    #[serde(default)]
-    pub data_volume: bool,
-
     /// Should the container have access to internet
     #[serde(default)]
     pub network: bool,

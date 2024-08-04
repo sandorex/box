@@ -1,4 +1,4 @@
-use crate::{VERSION, DATA_VOLUME_NAME};
+use crate::VERSION;
 use crate::util::{self, CommandOutputExt, Engine, EngineKind};
 use crate::cli;
 use std::process::{Command, ExitCode};
@@ -62,9 +62,6 @@ pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStar
 
         // take image from config
         cli_args.image = config.image.clone();
-
-        // prefer cli data volume
-        cli_args.data_volume = cli_args.data_volume.or(Some(config.data_volume));
 
         // prefer cli network
         cli_args.network = cli_args.network.or(Some(config.network));
@@ -157,31 +154,6 @@ pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStar
 
     // find all terminfo dirs, they differ mostly on debian...
     find_terminfo(&mut args);
-
-    if cli_args.data_volume.unwrap_or(true) {
-        let inspect_cmd = Command::new(&engine.path)
-            .args(["volume", "inspect", DATA_VOLUME_NAME])
-            .output()
-            .expect("Could not execute engine");
-
-        // if it fails then volume is missing probably
-        if ! inspect_cmd.status.success() {
-            let create_vol_cmd = Command::new(&engine.path)
-                .args(["volume", "create", DATA_VOLUME_NAME])
-                .output()
-                .expect("Could not execute engine");
-
-            // TODO maybe i should print stdout/stderr if it fails?
-            if ! create_vol_cmd.status.success() {
-                eprintln!("Failed to create data volume: {}", create_vol_cmd.status);
-                return create_vol_cmd.to_exitcode();
-            }
-        }
-
-        args.extend(vec![
-            "--volume".into(), format!("{}:/data:Z", DATA_VOLUME_NAME),
-        ]);
-    }
 
     // disable network if requested
     if ! cli_args.network.unwrap_or(true) {
