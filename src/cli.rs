@@ -1,3 +1,6 @@
+pub mod cli_image;
+
+use cli_image::ImageCommands;
 use clap::{Parser, Subcommand, Args};
 use crate::FULL_VERSION;
 
@@ -121,6 +124,10 @@ pub enum CliCommands {
     ///
     /// Exit code is 0 if container exists otherwise 1
     Exists(CmdExistsArgs),
+
+    /// Image related commands
+    #[command(subcommand)]
+    Image(ImageCommands),
 
     /// List running containers managed by box
     // TODO see if its possible to stack the --filter podman

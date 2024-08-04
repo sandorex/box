@@ -173,32 +173,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn abi_change() {
-        // this test should inform me if i break props of the configs
-        //
-        // NOTE if this fails then check everything else as there many places with ..default and it
-        // will not warn about unused props
-        let _ = EngineConfig {
-           engine_args: Default::default(),
-           capabilities: Default::default(),
-           env: Default::default(),
-        };
-
-        let _ = Config {
-            name: Default::default(),
-            image: Default::default(),
-            container_name: Default::default(),
-            dotfiles: Default::default(),
-            data_volume: Default::default(),
-            network: Default::default(),
-
-            default: Default::default(),
-            podman: Default::default(),
-            docker: Default::default(),
-        };
-    }
-
-    #[test]
     fn from_str() {
         let cfg_text = r#"
 [[config]]

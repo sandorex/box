@@ -51,11 +51,15 @@ fn main() -> ExitCode {
     }
 
     use cli::CliCommands;
+    use cli::cli_image::ImageCommands;
     match args.cmd {
         CliCommands::Start(x) => commands::start_container(engine, args.dry_run, x),
         CliCommands::Shell(x) => commands::open_shell(engine, args.dry_run, &x),
         CliCommands::Exec(x) => commands::container_exec(engine, args.dry_run, &x),
         CliCommands::Exists(x) => commands::container_exists(engine, &x),
+        CliCommands::Image(subcmd) => match subcmd {
+            ImageCommands::ExtractConfig(x) => commands::extract_config(engine, args.dry_run, &x),
+        },
         CliCommands::List => commands::print_containers(engine, args.dry_run),
         CliCommands::Kill(x) => commands::kill_container(engine, args.dry_run, &x),
         CliCommands::Init => unreachable!(), // this is handled before
