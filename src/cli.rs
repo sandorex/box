@@ -18,10 +18,10 @@ pub struct Cli {
     pub cmd: CliCommands,
 }
 
-#[derive(Args, Debug, Clone)]
+#[derive(Args, Debug, Clone, Default)]
 pub struct CmdStartArgs {
     /// Environment variables to set inside the container
-    #[arg(short, long)]
+    #[arg(short, long, value_name = "VAR=VALUE")]
     pub env: Vec<String>,
 
     /// Name of the new container (if not set a randomly generated name will be used)
@@ -42,15 +42,18 @@ pub struct CmdStartArgs {
     #[arg(long)]
     pub engine_args: Vec<String>,
 
-    /// Do not mount data volume inside the container
-    #[arg(long = "no-data", action = clap::ArgAction::SetFalse)]
-    pub data_volume: bool,
+    // TODO data_volume and network should be --network/--no-network and --no-data-volume/--data-volume
+    // but https://github.com/clap-rs/clap/issues/815
 
-    /// Disable network access for the container
-    #[arg(long = "no-network", action = clap::ArgAction::SetFalse)]
-    pub network: bool,
+    /// Should the data volume be mounted inside the container
+    #[arg(long, value_name = "BOOL", default_missing_value = "true", require_equals = true, num_args = 0..=1)]
+    pub data_volume: Option<bool>,
 
-    /// Container image to use
+    /// Set network access permission for the container
+    #[arg(long, value_name = "BOOL", default_missing_value = "true", require_equals = true, num_args = 0..=1)]
+    pub network: Option<bool>,
+
+    /// Container image to use or @config
     #[arg(env = "BOX_IMAGE")]
     pub image: String,
 }

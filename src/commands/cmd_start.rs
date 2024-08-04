@@ -2,6 +2,7 @@ use crate::{VERSION, DATA_VOLUME_NAME};
 use crate::util::{self, CommandOutputExt, Engine, EngineKind};
 use crate::cli;
 use std::process::{Command, ExitCode};
+use crate::config::load_from_dir;
 
 // Finds all terminfo directories on host so they can be mounted in the container so no terminfo
 // installing is required
@@ -41,6 +42,17 @@ fn find_terminfo(args: &mut Vec<String>) {
 pub fn start_container(engine: Engine, dry_run: bool, cli_args: &cli::CmdStartArgs) -> ExitCode {
     let cwd = std::env::current_dir().expect("Failed to get current directory");
     let executable_path = std::env::current_exe().expect("Failed to get executable path");
+
+    // handle configs
+    if cli_args.image.starts_with("@") {
+        let configs = match util::load_configs() {
+            Some(x) => x,
+            None => return ExitCode::FAILURE,
+        };
+
+        return ExitCode::SUCCESS;
+        // TODO load configs
+    }
 
     // TODO test if image is @something and then load the configs
     // get the correct one
@@ -113,7 +125,7 @@ pub fn start_container(engine: Engine, dry_run: bool, cli_args: &cli::CmdStartAr
     // find all terminfo dirs, they differ mostly on debian...
     find_terminfo(&mut args);
 
-    if cli_args.data_volume {
+    if cli_args.data_volume.unwrap_or(true) {
         let inspect_cmd = Command::new(&engine.path)
             .args(&["volume", "inspect", DATA_VOLUME_NAME])
             .output()
@@ -139,7 +151,7 @@ pub fn start_container(engine: Engine, dry_run: bool, cli_args: &cli::CmdStartAr
     }
 
     // disable network if requested
-    if ! cli_args.network {
+    if ! cli_args.network.unwrap_or(true) {
         args.push("--network=none".into());
     }
 

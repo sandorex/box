@@ -5,7 +5,7 @@ mod config;
 
 use clap::Parser;
 use std::process::ExitCode;
-use util::{Engine, find_available_engine};
+use util::Engine;
 
 pub const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 pub const FULL_VERSION: &'static str = concat!(env!("CARGO_PKG_VERSION"), env!("GIT_DESCRIBE"));
@@ -38,7 +38,7 @@ fn main() -> ExitCode {
 
         Engine::detect(&chosen).expect("Failed to detect engine kind")
     } else {
-        if let Some(found) = find_available_engine() {
+        if let Some(found) = Engine::find_available_engine() {
             found
         } else {
             eprintln!("No compatible container engine found in PATH");

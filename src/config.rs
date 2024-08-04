@@ -87,33 +87,6 @@ pub struct Config {
     pub docker: EngineConfig,
 }
 
-impl Config {
-    pub fn to_cli_args(&self, engine: &util::Engine) -> cli::CmdStartArgs {
-        let engine_config = match engine.kind {
-            util::EngineKind::Podman => &self.podman,
-            util::EngineKind::Docker => &self.docker,
-        };
-
-        // TODO add together the engine confgi
-        let mut config = self.default.clone();
-        config.engine_args.extend(engine_config.engine_args.clone());
-        config.capabilities.extend(engine_config.capabilities.clone());
-        config.env.extend(engine_config.env.clone());
-
-        cli::CmdStartArgs {
-            image: self.image.clone(),
-            name: self.container_name.clone(),
-            dotfiles: self.dotfiles.clone().map(|x| std::path::PathBuf::from(x)),
-            data_volume: self.data_volume,
-            network: self.network,
-
-            engine_args: config.engine_args,
-            capabilities: config.capabilities,
-            env: config.env.iter().map(|(k, v)| format!("{k}={v}")).collect::<Vec<String>>(),
-        }
-    }
-}
-
 // TODO create conversion between cli args and this, so one could generate it from cmd args
 /// Container arguments for specific engine
 #[derive(Debug, Clone, Default, PartialEq, Deserialize, Serialize)]
@@ -147,14 +120,7 @@ pub fn load_from_dir(path: &str) -> Result<HashMap<String, Config>, Box<dyn Erro
         .collect();
 
     for file in toml_files {
-        let config_file = match ConfigFile::load_from_file(file.display().to_string().as_str()) {
-            Ok(x) => x,
-            Err(err) => {
-                eprintln!("Error while parsing config file {}:", file.display());
-                eprintln!("{}\n", err);
-                continue;
-            },
-        };
+        let config_file = ConfigFile::load_from_file(file.display().to_string().as_str())?;
 
         for config in config_file.config.unwrap_or_default() {
             // ignore any duplicates, let the user handle it if they wish
