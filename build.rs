@@ -7,7 +7,7 @@ fn main() {
     println!("cargo::rerun-if-changed=.git");
 
     // basically generate 'v0.1.1-4-gb9461f0d8e-dirty' if dirty and 4 commits after v0.1.1 tag
-    let git_hash = match Command::new("git").args(&["describe", "--tags", "--abbrev=10", "--dirty"]).output() {
+    let git_hash = match Command::new("git").args(["describe", "--tags", "--abbrev=10", "--dirty"]).output() {
         Ok(output) => {
             let stdout = String::from_utf8_lossy(&output.stdout).to_string();
             format!(" (git {})", stdout.trim())

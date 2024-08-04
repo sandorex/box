@@ -10,7 +10,7 @@ use std::process::{Command, ExitCode};
 //
 fn find_terminfo(args: &mut Vec<String>) {
     let mut existing: Vec<String> = vec![];
-    for x in vec!["/usr/share/terminfo", "/usr/lib/terminfo", "/etc/terminfo"] {
+    for x in ["/usr/share/terminfo", "/usr/lib/terminfo", "/etc/terminfo"] {
         if std::path::Path::new(x).exists() {
             args.extend(vec!["--volume".into(), format!("{0}:/host{0}:ro", x)]);
             existing.push(x.into());
@@ -64,10 +64,10 @@ pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStar
         cli_args.image = config.image.clone();
 
         // prefer cli data volume
-        cli_args.data_volume = cli_args.data_volume.or_else(|| Some(config.data_volume));
+        cli_args.data_volume = cli_args.data_volume.or(Some(config.data_volume));
 
         // prefer cli network
-        cli_args.network = cli_args.network.or_else(|| Some(config.network));
+        cli_args.network = cli_args.network.or(Some(config.network));
 
         // prefer cli name
         cli_args.name = cli_args.name.or_else(|| config.container_name.clone());
@@ -102,7 +102,7 @@ pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStar
     // allow dry-run regardless if the container exists
     if !dry_run {
         // quit pre-emptively if container already exists
-        if let Some(_) = util::get_container_status(&engine, &container_name) {
+        if util::get_container_status(&engine, &container_name).is_some() {
             eprintln!("Container {} already exists", &container_name);
             return ExitCode::FAILURE;
         }
@@ -138,7 +138,7 @@ pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStar
                 // TODO should i add --annotation run.oci.keep_original_groups=1
             ]);
         },
-        _ => {},
+        EngineKind::Docker => unreachable!(),
     }
 
     // add the env vars, TODO should this be checked for syntax?
@@ -148,8 +148,8 @@ pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStar
 
     // add remove capabilities easily
     for c in &cli_args.capabilities {
-        if c.starts_with("!") {
-            args.extend(vec!["--cap-drop".into(), c[1..].to_string()])
+        if let Some(stripped) = c.strip_prefix("!") {
+            args.extend(vec!["--cap-drop".into(), stripped.to_string()])
         } else {
             args.extend(vec!["--cap-add".into(), c.to_string()])
         }
@@ -160,14 +160,14 @@ pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStar
 
     if cli_args.data_volume.unwrap_or(true) {
         let inspect_cmd = Command::new(&engine.path)
-            .args(&["volume", "inspect", DATA_VOLUME_NAME])
+            .args(["volume", "inspect", DATA_VOLUME_NAME])
             .output()
             .expect("Could not execute engine");
 
         // if it fails then volume is missing probably
         if ! inspect_cmd.status.success() {
             let create_vol_cmd = Command::new(&engine.path)
-                .args(&["volume", "create", DATA_VOLUME_NAME])
+                .args(["volume", "create", DATA_VOLUME_NAME])
                 .output()
                 .expect("Could not execute engine");
 

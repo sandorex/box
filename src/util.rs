@@ -47,7 +47,7 @@ pub fn get_hostname() -> String {
 ///
 /// Uses system time so its not really random cause im stingy about dependencies
 pub fn generate_name() -> String {
-    const ADJECTIVES_ENGLISH: &'static str = include_str!("adjectives.txt");
+    const ADJECTIVES_ENGLISH: &str = include_str!("adjectives.txt");
 
     // NOTE: pseudo-random without crates!
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -59,9 +59,9 @@ pub fn generate_name() -> String {
         .unwrap();
 
     let adjectives: Vec<&str> = ADJECTIVES_ENGLISH.lines().collect();
-    let adjective = adjectives.iter().nth(nanos % adjectives.len()).unwrap();
+    let adjective = adjectives.get(nanos % adjectives.len()).unwrap();
 
-    return format!("{}-box", adjective);
+    format!("{}-box", adjective)
 }
 
 #[cfg(target_os = "linux")]
@@ -79,7 +79,7 @@ pub fn print_cmd_dry_run(engine: &Engine, args: Vec<String>) {
 
 /// Get app configuration directory
 pub fn app_dir() -> PathBuf {
-    const BOX_DIR: &'static str = "box";
+    const BOX_DIR: &str = "box";
 
     // prefer custom path from environment
     match std::env::var("BOX_DIR") {

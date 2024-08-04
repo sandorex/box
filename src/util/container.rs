@@ -14,7 +14,7 @@ pub enum ContainerStatus {
 /// Get container status if it exists
 pub fn get_container_status(engine: &Engine, container: &str) -> Option<ContainerStatus> {
     let cmd = Command::new(&engine.path)
-        .args(&["container", "inspect", container, "--format", "{{.State.Status}}"])
+        .args(["container", "inspect", container, "--format", "{{.State.Status}}"])
         .output()
         .expect("Could not execute engine");
 
@@ -36,7 +36,7 @@ pub fn get_container_status(engine: &Engine, container: &str) -> Option<Containe
 /// Check if container is owned by box, will return false if container does not exist
 pub fn is_box_container(engine: &Engine, name: &str) -> bool {
     let cmd = Command::new(&engine.path)
-        .args(&["container", "inspect", name, "--format", "{{if .Config.Labels.box}}{{.Config.Labels.box}}{{end}}"])
+        .args(["container", "inspect", name, "--format", "{{if .Config.Labels.box}}{{.Config.Labels.box}}{{end}}"])
         .output()
         .expect("Could not execute engine");
 

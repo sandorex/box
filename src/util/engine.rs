@@ -40,7 +40,7 @@ impl Engine {
         // podman: podman version 5.1.2
 
         let cmd = Command::new(engine)
-            .args(&["--version"])
+            .args(["--version"])
             .output()
             .expect("Could not execute engine");
 
