@@ -4,6 +4,8 @@ mod commands;
 mod config;
 
 use clap::Parser;
+use cli::CliCommands;
+use cli::cli_config::ConfigCommands;
 use std::process::ExitCode;
 use util::Engine;
 
@@ -21,10 +23,6 @@ fn main() -> ExitCode {
         }
 
         return commands::container_init()
-    }
-
-    if args.dry_run {
-        eprintln!("DRY RUN MODE");
     }
 
     // find and detect engine
@@ -49,15 +47,20 @@ fn main() -> ExitCode {
         return ExitCode::FAILURE
     }
 
-    use cli::CliCommands;
-    use cli::cli_image::ImageCommands;
+    // prevent running with docker for now
+    if let util::EngineKind::Docker = engine.kind {
+        eprintln!("Docker is not supported at the moment");
+        return ExitCode::FAILURE
+    }
+
     match args.cmd {
         CliCommands::Start(x) => commands::start_container(engine, args.dry_run, x),
         CliCommands::Shell(x) => commands::open_shell(engine, args.dry_run, &x),
         CliCommands::Exec(x) => commands::container_exec(engine, args.dry_run, &x),
         CliCommands::Exists(x) => commands::container_exists(engine, &x),
-        CliCommands::Image(subcmd) => match subcmd {
-            ImageCommands::ExtractConfig(x) => commands::extract_config(engine, args.dry_run, &x),
+        CliCommands::Config(subcmd) => match subcmd {
+            ConfigCommands::Extract(x) => commands::extract_config(engine, args.dry_run, &x),
+            ConfigCommands::Inspect(x) => commands::inspect_config(&x),
         },
         CliCommands::List => commands::print_containers(engine, args.dry_run),
         CliCommands::Kill(x) => commands::kill_container(engine, args.dry_run, &x),

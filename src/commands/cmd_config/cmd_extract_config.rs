@@ -2,7 +2,7 @@ use crate::util::{self, Engine};
 use crate::cli;
 use std::process::{Command, ExitCode};
 
-pub fn extract_config(engine: Engine, dry_run: bool, cli_args: &cli::cli_image::CmdImageExtractConfigArgs) -> ExitCode {
+pub fn extract_config(engine: Engine, dry_run: bool, cli_args: &cli::cli_config::CmdConfigExtractArgs) -> ExitCode {
     let cmd = Command::new(&engine.path)
         .args(["image", "exists", &cli_args.image])
         .output()
