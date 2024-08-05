@@ -9,7 +9,8 @@ pub fn inspect_config(cli_args: &cli::cli_config::CmdConfigInspectArgs) -> ExitC
             ExitCode::SUCCESS
         },
         Err(err) => {
-            eprintln!("Failed to load config {}: {}", cli_args.path, err);
+            // NOTE err is custom error so the message is already predefined
+            eprintln!("{}", err);
 
             ExitCode::SUCCESS
         }
