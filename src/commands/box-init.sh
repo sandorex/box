@@ -19,14 +19,32 @@ else
     shell=/bin/bash
 fi
 
-echo "Setting the user home and shell"
-usermod -d "$HOME" -s "${BOX_SHELL:-$shell}" "$BOX_USER"
+# if user is missing then create it
+if ! getent passwd "$BOX_USER" &>/dev/null; then
+    echo "Creating user $BOX_USER"
+
+    # TODO do i need more groups?
+    useradd \
+        --shell "${SHELL:-$shell}" \
+        --home-dir "$HOME" \
+        --uid "${BOX_USER_UID:?}" \
+        --gid "${BOX_USER_GID:?}" \
+        --no-create-home \
+        "$BOX_USER"
+else
+    echo "Setting the user home and shell"
+
+    # if shell is set inside the container use it, otherwise detect it automatically
+    usermod \
+        --home "$HOME" \
+        --shell "${SHELL:-$shell}" \
+        "$BOX_USER"
+fi
 
 echo "Setting up user home from /etc/skel"
 
-if [[ ! -d "$HOME" ]]; then
-    mkdir "$HOME"
-fi
+# create home if it does not exist
+mkdir -p "$HOME"
 
 # make it owned by the user
 chown "$BOX_USER:$BOX_USER" "$HOME"
@@ -58,13 +76,6 @@ do
         chown "$BOX_USER:$BOX_USER" "$HOME/$file"
     fi
 done < <(cd /etc/skel && find . \( -type f -o -type l \) -printf '%P\0')
-
-# NOTE i preserved the old versions here which are less readable
-# (cd /etc/skel && find . -type d -exec mkdir -p "/home/$BOX_USER/{}" \; -exec chown "$BOX_USER:$BOX_USER" "/home/$BOX_USER/{}" \;)
-# (cd /etc/skel && find . -type f -exec cp --update=none --preserve "{}" "/home/$BOX_USER/{}" \; -exec chown "$BOX_USER:$BOX_USER" "/home/$BOX_USER/{}" \;)
-
-# TODO is this even necessary?
-[[ -d "$HOME/.ssh" ]] && chmod 0700 "$HOME/.ssh"
 
 # only do it if there is sudo installed
 if [[ -f /usr/bin/sudo ]]; then
