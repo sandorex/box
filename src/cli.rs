@@ -72,7 +72,7 @@ pub struct CmdExecArgs {
     pub shell: bool,
 
     /// Name or the ID of the container
-    #[arg(env = "BOX_CONTAINER")]
+    #[arg(value_name = "CONTAINER", env = "BOX_CONTAINER")]
     pub name: String,
 
     // NOTE command is required but last so that you can use name from environment
@@ -95,6 +95,16 @@ pub struct CmdKillArgs {
     /// How many seconds to wait before killing the containers forcibly
     #[arg(short, long, default_value_t = 20)]
     pub timeout: u32,
+
+    #[arg(env = "BOX_CONTAINER")]
+    pub container: String,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct CmdLogsArgs {
+    /// Follow the logs
+    #[arg(short, long)]
+    pub follow: bool,
 
     #[arg(env = "BOX_CONTAINER")]
     pub container: String,
@@ -124,8 +134,10 @@ pub enum CliCommands {
     Config(ConfigCommands),
 
     /// List running containers managed by box
-    // TODO see if its possible to stack the --filter podman
     List,
+
+    /// Show container logs in journalctl
+    Logs(CmdLogsArgs),
 
     /// Stop running containers managed by box
     #[command(arg_required_else_help = true)]

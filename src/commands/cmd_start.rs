@@ -153,7 +153,7 @@ pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStar
         EngineKind::Docker => unreachable!(),
     }
 
-    // add the env vars, TODO should this be checked for syntax?
+    // add the env vars
     for e in &cli_args.env {
         args.extend(vec!["--env".into(), e.into()]);
     }
@@ -203,7 +203,5 @@ pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStar
             .expect("Could not execute engine")
             .to_exitcode()
     }
-
-    // TODO add interactive version where i can see output from the container, maybe podman logs -f
 }
 
