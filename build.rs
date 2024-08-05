@@ -10,12 +10,13 @@ fn main() {
     let git_hash = match Command::new("git").args(["describe", "--tags", "--abbrev=10", "--dirty"]).output() {
         Ok(output) => {
             let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-            format!(" (git {})", stdout.trim())
+            format!(" ({})", stdout.trim())
         },
         // in case built without git, which shouldnt happen right?
+        // well.. cargo package does not have access to the git repo
         Err(_) => {
             println!("cargo::warning='Git not found, could not describe git'");
-            " (???)".to_string()
+            " ".to_string()
         },
     };
 
