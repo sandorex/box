@@ -47,10 +47,17 @@ done < <(cd /etc/skel && find . -type d -printf '%P\0')
 while IFS= read -r -d '' file
 do
     perm="$(stat --format='%a' "/etc/skel/$file")"
-    cp --update=none --preserve "/etc/skel/$file" "$HOME/$file"
-    chmod "$perm" "$HOME/$file"
-    chown "$BOX_USER:$BOX_USER" "$HOME/$file"
-done < <(cd /etc/skel && find . -type f -printf '%P\0')
+    cp --no-dereference --update=none --preserve "/etc/skel/$file" "$HOME/$file"
+
+    # links require some special care
+    if [[ -L "/etc/skel/$file" ]]; then
+        # needs -h so it does not change the targeted file
+        chown -h "$BOX_USER:$BOX_USER" "$HOME/$file"
+    else
+        chmod --reference="/etc/skel/$file" "$HOME/$file"
+        chown "$BOX_USER:$BOX_USER" "$HOME/$file"
+    fi
+done < <(cd /etc/skel && find . \( -type f -o -type l \) -printf '%P\0')
 
 # NOTE i preserved the old versions here which are less readable
 # (cd /etc/skel && find . -type d -exec mkdir -p "/home/$BOX_USER/{}" \; -exec chown "$BOX_USER:$BOX_USER" "/home/$BOX_USER/{}" \;)
@@ -84,7 +91,7 @@ if [[ -d /init.d ]]; then
     done
 fi
 
-echo "Starting infinite loop (Ctrl + C to close)"
+echo "Starting infinite loop (use SIGTERM to stop the container)"
 
 # make sure the container stays alive
 sleep infinity &
