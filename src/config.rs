@@ -121,7 +121,7 @@ impl Config {
 pub struct EngineConfig {
     // NOTE keep it simple, do not add unecessary wrappers for arguments
 
-    /// Arguments to pass to the engine verbatim
+    /// Arguments to pass to the engine, some $VARS are expanded
     #[serde(default)]
     pub engine_args: Vec<String>,
 

@@ -1,6 +1,7 @@
 use crate::VERSION;
 use crate::util::{self, CommandOutputExt, Engine, EngineKind};
 use crate::cli;
+use std::collections::HashMap;
 use std::process::{Command, ExitCode};
 
 // Finds all terminfo directories on host so they can be mounted in the container so no terminfo
@@ -38,12 +39,31 @@ fn find_terminfo(args: &mut Vec<String>) {
     args.extend(vec!["--env".into(), format!("TERMINFO_DIRS={}", terminfo_env)]);
 }
 
+/// Highly inefficient expansion of env vars in string
+fn expand_env(mut string: String, environ: &HashMap<String, String>) -> String {
+    if string.contains("$") {
+        for (k, v) in environ.iter() {
+            string = string.replace(format!("${}", k).as_str(), v);
+        }
+    }
+
+    string
+}
+
 pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStartArgs) -> ExitCode {
     let cwd = std::env::current_dir().expect("Failed to get current directory");
     let executable_path = std::env::current_exe().expect("Failed to get executable path");
+    let user = util::get_user();
 
     // handle configs
     if cli_args.image.starts_with("@") {
+        // allowed to be used in the config engine_args
+        let expand_environ: HashMap<String, String> = HashMap::from([
+            ("USER".into(), user.clone()),
+            ("PWD".into(), cwd.clone().to_string_lossy().to_string()),
+            ("HOME".into(), format!("/home/{}", user)),
+        ]);
+
         // load all configs
         let configs = match util::load_configs() {
             Some(x) => x,
@@ -77,22 +97,17 @@ pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStar
         cli_args.capabilities.extend(config.default.capabilities.clone());
         cli_args.capabilities.extend(engine_config.capabilities.clone());
 
-        cli_args.engine_args.extend(config.default.engine_args.clone());
-        cli_args.engine_args.extend(engine_config.engine_args.clone());
+        // at the moment only engine_args have the vars expanded
+        cli_args.engine_args.extend(config.default.engine_args.iter().map(|x| expand_env(x.clone(), &expand_environ)));
+        cli_args.engine_args.extend(engine_config.engine_args.iter().map(|x| expand_env(x.clone(), &expand_environ)));
 
         cli_args.env.extend(config.default.env.clone().iter().map(|(k, v)| format!("{k}={v}")));
         cli_args.env.extend(engine_config.env.clone().iter().map(|(k, v)| format!("{k}={v}")));
     }
 
-    // TODO test if image is @something and then load the configs
-    // get the correct one
-    // merge with cli being the priority for flags
-
     // generate a name if not provided already
     let container_name = match &cli_args.name {
         Some(x) => x.clone(),
-        // generating a name is easier than reading the output and then running inspect again just
-        // to get the human-friendly name of a container
         None => util::generate_name(),
     };
 
@@ -106,7 +121,6 @@ pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStar
     }
 
     // TODO set XDG_ env vars just in case
-    // TODO add env var with engine used (but only basename in case its a full path)
     let mut args: Vec<String> = vec![
         "run".into(), "-d".into(), "--rm".into(),
         "--security-opt".into(), "label=disable".into(),
@@ -117,8 +131,8 @@ pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStar
         "--env".into(), "BOX=BOX".into(),
         "--env".into(), format!("BOX_VERSION={}", VERSION),
         "--env".into(), format!("BOX_ENGINE={:?}", engine.kind),
-        "--env".into(), format!("BOX_USER={}", util::get_user()),
-        "--volume".into(), format!("{}:/box:ro", executable_path.display()),
+        "--env".into(), format!("BOX_USER={}", user),
+        "--volume".into(), format!("{}:/box:ro,nocopy", executable_path.display()),
         "--volume".into(), format!("{}:/ws", &cwd.to_string_lossy()),
         "--hostname".into(), util::get_hostname(),
     ];
@@ -169,8 +183,6 @@ pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStar
     args.extend(cli_args.engine_args.clone());
 
     args.extend(vec![
-        // TODO add this as an option
-        // "--env".into(), "RUST_BACKTRACE=1".into(),
         "--entrypoint".into(), "/box".into(),
 
         // the container image
