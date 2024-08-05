@@ -67,6 +67,11 @@ pub fn generate_name() -> String {
 #[cfg(target_os = "linux")]
 pub fn get_user() -> String { std::env::var("USER").expect("Unable to get USER from env var") }
 
+/// Get predefined workspace directory
+pub fn get_workspace_dir(user: &String) -> String {
+    format!("/home/{}/ws", user)
+}
+
 /// Prints command which would've been ran, pretty ugly but should properly quote things, keyword
 /// being SHOULD
 pub fn print_cmd_dry_run(engine: &Engine, args: Vec<String>) {

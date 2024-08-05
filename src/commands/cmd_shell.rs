@@ -38,10 +38,10 @@ pub fn open_shell(engine: Engine, dry_run: bool, cli_args: &cli::CmdShellArgs) -
 
     let args: Vec<String> = vec![
         "exec".into(), "-it".into(),
-        "--user".into(), user,
-        // propagete TERM but default to xterm
         "--env".into(), format!("TERM={}", std::env::var("TERM").unwrap_or("xterm".into())),
-        "--workdir".into(), "/ws".into(),
+        "--env".into(), format!("HOME=/home/{}", user),
+        "--workdir".into(), util::get_workspace_dir(&user),
+        "--user".into(), user,
         cli_args.name.clone(),
         user_shell.to_string(), "-l".into(),
     ];

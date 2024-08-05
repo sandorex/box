@@ -133,7 +133,8 @@ pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStar
         "--env".into(), format!("BOX_ENGINE={:?}", engine.kind),
         "--env".into(), format!("BOX_USER={}", user),
         "--volume".into(), format!("{}:/box:ro,nocopy", executable_path.display()),
-        "--volume".into(), format!("{}:/ws", &cwd.to_string_lossy()),
+        // TODO think about removing this mount completely and moving it to the config
+        "--volume".into(), format!("{}:{}", &cwd.to_string_lossy(), util::get_workspace_dir(&user)),
         "--hostname".into(), util::get_hostname(),
     ];
 

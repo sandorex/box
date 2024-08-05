@@ -60,7 +60,7 @@ pub struct CmdShellArgs {
     #[arg(env = "BOX_CONTAINER")]
     pub name: String,
 
-    // i feel like `shell --shell` looks awful so positional arg. it is
+    // i feel like `shell --shell` looks awful so i made into a position arg
     /// Use custom shell
     pub shell: Option<String>,
 }
@@ -75,7 +75,7 @@ pub struct CmdExecArgs {
     #[arg(env = "BOX_CONTAINER")]
     pub name: String,
 
-    // command is required but also last so '--' can be used as name can be taken from environ
+    // NOTE command is required but last so that you can use name from environment
     #[arg(last = true, required = true)]
     pub command: Vec<String>,
 }
@@ -130,9 +130,6 @@ pub enum CliCommands {
     /// Stop running containers managed by box
     #[command(arg_required_else_help = true)]
     Kill(CmdKillArgs),
-
-    // Push,
-    // Pull,
 
     /// Init command used to setup the container
     #[command(hide = true)]
