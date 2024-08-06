@@ -66,7 +66,7 @@ done < <(cd /etc/skel && find . -type d -printf '%P\0')
 while IFS= read -r -d '' file
 do
     perm="$(stat --format='%a' "/etc/skel/$file")"
-    cp --no-dereference --update=none --preserve "/etc/skel/$file" "$HOME/$file"
+    cp --no-dereference --preserve "/etc/skel/$file" "$HOME/$file"
 
     # links require some special care
     if [[ -L "/etc/skel/$file" ]]; then
@@ -89,7 +89,7 @@ if [[ -f /usr/bin/sudo ]]; then
     echo 'ALL ALL = (ALL) NOPASSWD: ALL' >> /etc/sudoers
 else
     # set root passwd just in case so you can use `su`
-    echo "root:root" | passwd root
+    chpasswd <<< "root:root"
 fi
 
 # run user scripts

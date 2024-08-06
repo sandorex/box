@@ -33,6 +33,12 @@ impl CommandOutputExt for std::process::Output {
 /// Get hostname from system using `hostname` command
 #[cfg(target_os = "linux")]
 pub fn get_hostname() -> String {
+    // try to get hostname from env var
+    if let Ok(env_hostname) = std::env::var("HOSTNAME") {
+        return env_hostname;
+    }
+
+    // then as a fallback use hostname executable
     let cmd = Command::new("hostname").output().expect("Could not call hostname");
     let hostname = String::from_utf8_lossy(&cmd.stdout);
 
