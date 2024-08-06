@@ -120,7 +120,8 @@ pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStar
         }
     }
 
-    // TODO set XDG_ env vars just in case
+    let (uid, gid) = util::get_user_uid_gid();
+
     let mut args: Vec<String> = vec![
         "run".into(), "-d".into(), "--rm".into(),
         "--security-opt".into(), "label=disable".into(),
@@ -132,6 +133,8 @@ pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStar
         "--env".into(), format!("BOX_VERSION={}", VERSION),
         "--env".into(), format!("BOX_ENGINE={:?}", engine.kind),
         "--env".into(), format!("BOX_USER={}", user),
+        "--env".into(), format!("BOX_USER_UID={}", uid),
+        "--env".into(), format!("BOX_USER_GID={}", gid),
         "--volume".into(), format!("{}:/box:ro,nocopy", executable_path.display()),
         // TODO think about removing this mount completely and moving it to the config
         "--volume".into(), format!("{}:{}", &cwd.to_string_lossy(), util::get_workspace_dir(&user)),

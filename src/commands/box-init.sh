@@ -32,6 +32,7 @@ if ! getent passwd "$BOX_USER" &>/dev/null; then
         --no-create-home \
         "$BOX_USER"
 else
+    # user already exists so probably --userns keep-id
     echo "Setting the user home and shell"
 
     # if shell is set inside the container use it, otherwise detect it automatically
