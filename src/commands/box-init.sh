@@ -25,7 +25,7 @@ if ! getent passwd "$BOX_USER" &>/dev/null; then
 
     # TODO do i need more groups?
     useradd \
-        --shell "${SHELL:-$shell}" \
+        --shell "$shell" \
         --home-dir "$HOME" \
         --uid "${BOX_USER_UID:?}" \
         --gid "${BOX_USER_GID:?}" \
@@ -38,7 +38,7 @@ else
     # if shell is set inside the container use it, otherwise detect it automatically
     usermod \
         --home "$HOME" \
-        --shell "${SHELL:-$shell}" \
+        --shell "$shell" \
         "$BOX_USER"
 fi
 
