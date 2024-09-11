@@ -1,5 +1,7 @@
 /// Contains everything related to container configuration
 
+use struct_field_names_as_array::FieldNamesAsArray;
+use documented::{Documented, DocumentedFields};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
@@ -38,7 +40,7 @@ impl Error for ConfigError {
 }
 
 /// Whole config file
-#[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Default, Deserialize, Serialize, Documented, DocumentedFields, FieldNamesAsArray)]
 pub struct ConfigFile {
     /// Version of the configuration
     pub version: Option<u64>,
@@ -72,9 +74,10 @@ impl ConfigFile {
     }
 }
 
+// TODO merge with cli and use #[clap(skip)]
 /// Single configuration for a container, contains default settings and optional settings per
 /// engine that get applied over the default settings
-#[derive(Debug, Clone, Default, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Deserialize, Serialize, Documented, DocumentedFields, FieldNamesAsArray)]
 pub struct Config {
     // TODO figure out rules for local containers that need to be built
     /// Name of the configuration
@@ -141,7 +144,7 @@ impl Config {
 
 // TODO create conversion between cli args and this, so one could generate it from cmd args
 /// Container arguments for specific engine
-#[derive(Debug, Clone, Default, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Deserialize, Serialize, Documented, DocumentedFields, FieldNamesAsArray)]
 pub struct EngineConfig {
     // NOTE keep it simple, do not add unecessary wrappers for arguments
 

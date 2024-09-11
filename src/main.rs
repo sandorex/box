@@ -72,6 +72,7 @@ fn main() -> ExitCode {
         CliCommands::Config(subcmd) => match subcmd {
             ConfigCommands::Extract(x) => commands::extract_config(engine, args.dry_run, &x),
             ConfigCommands::Inspect(x) => commands::inspect_config(&x),
+            ConfigCommands::Help => commands::help_config(),
         },
         CliCommands::List => commands::print_containers(engine, args.dry_run),
         CliCommands::Logs(x) => commands::print_logs(engine, x),

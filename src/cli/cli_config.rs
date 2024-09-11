@@ -14,6 +14,9 @@ pub struct CmdConfigInspectArgs {
 
 #[derive(Subcommand, Debug)]
 pub enum ConfigCommands {
+    /// Prints help for config, containing all valid keys and what they do
+    Help,
+
     /// Extract container config from image
     Extract(CmdConfigExtractArgs),
 

@@ -13,7 +13,9 @@ readme = "README.md"
 chrono = "0.4.38"
 clap = { version = "4.5.11", features = ["derive", "env"] }
 ctrlc = { version = "3.4.5", features = ["termination"] }
+documented = "0.6.0"
 serde = { version = "1.0.204", features = ["derive"] }
+struct-field-names-as-array = "0.3.0"
 toml = "0.8.19"
 
 [build-dependencies]

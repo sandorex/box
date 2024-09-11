@@ -11,7 +11,7 @@ const AFTER_HELP: &str = concat!(
 
 /// Sandboxed development container manager, with focus on security by default
 #[derive(Parser, Debug)]
-#[command(name = crate::BIN_NAME, author, version = FULL_VERSION, about, after_help = AFTER_HELP)]
+#[command(name = crate::BIN_NAME, author, version = FULL_VERSION, about, after_help = AFTER_HELP, disable_help_subcommand = true)]
 pub struct Cli {
     /// Explicitly set container engine to use
     #[arg(long, env = ENV_VAR_PREFIX!("ENGINE"))]
@@ -150,6 +150,9 @@ pub struct CmdKillArgs {
 
 #[derive(Args, Debug, Clone)]
 pub struct CmdInitArgs {
+    // #[arg(long)]
+    // pub features: Vec<String>,
+
     /// Execute commands on init
     #[arg(last = true)]
     pub on_init: Vec<String>,
