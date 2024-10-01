@@ -6,6 +6,8 @@ use crate::cli;
 use std::collections::HashMap;
 use std::path::Path;
 
+use super::cmd_init::InitArgs;
+
 /// Get hostname from system using `hostname` command
 fn get_hostname() -> String {
     // try to get hostname from env var
@@ -77,6 +79,7 @@ fn find_terminfo() -> Vec<String> {
     args
 }
 
+// TODO expand actual environ vars
 /// Highly inefficient expansion of env vars in string
 fn expand_env(input: &mut String, environ: &HashMap<&str, &str>) {
     if input.contains("$") {
@@ -88,29 +91,16 @@ fn expand_env(input: &mut String, environ: &HashMap<&str, &str>) {
 }
 
 fn merge_config(engine: &Engine, mut config: Config, cli_args: &mut cli::CmdStartArgs, environ: &HashMap<&str, &str>) {
-    // expand config properties only
-    if let Some(skel) = config.skel.as_mut() {
-        expand_env(skel, environ);
-    }
-
-    for i in config.default.engine_args.iter_mut() {
+    for i in config.engine_args.iter_mut() {
         expand_env(i, environ);
     }
 
-    for (_, i) in config.default.env.iter_mut() {
+    for i in config.get_engine_args(engine).iter_mut() {
         expand_env(i, environ);
     }
 
-    // get the engine specific config
-    let mut engine_config = config.get_engine_config(engine).clone();
-
-    for i in engine_config.engine_args.iter_mut() {
-        expand_env(i, environ);
-    }
-
-    for (_, i) in engine_config.env.iter_mut() {
-        expand_env(i, environ);
-    }
+    cli_args.engine_args.extend(config.engine_args.clone());
+    cli_args.engine_args.extend(config.get_engine_args(engine).clone());
 
     // take image from config
     cli_args.image = config.image;
@@ -124,18 +114,16 @@ fn merge_config(engine: &Engine, mut config: Config, cli_args: &mut cli::CmdStar
     cli_args.on_init.extend_from_slice(&config.on_init);
     cli_args.on_init_file.extend_from_slice(&config.on_init_file);
 
+    // TODO skel should have different environ as it is host path
     // prefer cli dotfiles and have env vars expanded in config
-    if cli_args.skel.is_none() {
-        cli_args.skel = config.skel;
+    if let Some(skel) = config.skel.as_mut() {
+        expand_env(skel, environ);
+
+        cli_args.skel = Some(skel.clone());
     }
 
-    cli_args.capabilities.extend_from_slice(&config.default.capabilities);
-    cli_args.engine_args.extend(config.default.engine_args);
-    cli_args.env.extend(config.default.env.clone().iter().map(|(k, v)| format!("{k}={v}")));
-
-    cli_args.capabilities.extend_from_slice(&engine_config.capabilities);
-    cli_args.engine_args.extend(engine_config.engine_args);
-    cli_args.env.extend(engine_config.env.clone().iter().map(|(k, v)| format!("{k}={v}")));
+    cli_args.persist.extend(config.persist);
+    cli_args.env.extend(config.env.clone().iter().map(|(k, v)| format!("{k}={v}")));
 }
 
 pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStartArgs) -> ExitResult {
@@ -185,6 +173,7 @@ pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStar
             .or_else(|| config.container_name.clone())
             .unwrap_or_else(generate_name);
 
+        // TODO expand this to all environ args as well
         // allowed to be used in the config engine_args and dotfiles
         let cwd = cwd.to_string_lossy();
         let environ: HashMap<&str, &str> = HashMap::from([
@@ -244,6 +233,7 @@ pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStar
         EngineKind::Podman => {
             cmd.args([
                 "--userns=keep-id",
+                "--group-add=keep-groups",
 
                 // the default ulimit is low
                 "--ulimit=host",
@@ -287,14 +277,20 @@ pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStar
         }
     }
 
+    // add all persist volumes
+    for (p, vol) in &cli_args.persist {
+        // TODO check if path is a valid absolute path?
+        cmd.arg(format!("--volume={vol}:{p}"));
+    }
+
     {
         // find all terminfo dirs, they differ mostly on debian...
         let args = find_terminfo();
         cmd.args(args);
     }
 
-    // disable network if requested
-    if ! cli_args.network.unwrap_or(true) {
+    // set network if requested
+    if ! cli_args.network.unwrap_or(false) {
         cmd.arg("--network=none");
     }
 
@@ -391,6 +387,24 @@ pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStar
     // add the extra args verbatim
     cmd.args(cli_args.engine_args.clone());
 
+    let encoded_init_args = {
+        // pass all the args here
+        let init_args = InitArgs {
+            on_init: cli_args.on_init,
+
+            // take only the paths
+            persist: cli_args.persist.iter().map(|x| x.0.clone()).collect(),
+        };
+
+        match init_args.encode() {
+            Ok(x) => x,
+            Err(err) => {
+                eprintln!("Error while encoding init args: {}", err);
+                return Err(1);
+            },
+        }
+    };
+
     cmd.args([
         // detaching breaks things
         "--detach-keys=",
@@ -402,12 +416,9 @@ pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStar
 
         "init",
 
-        // rest after this are on_init scripts
-        "--",
+        // pass the init args as encoded string
+        &encoded_init_args,
     ]);
-
-    // add on_init commands to init
-    cmd.args(cli_args.on_init);
 
     if dry_run {
         cmd.print_escaped_cmd()
@@ -438,12 +449,13 @@ pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStar
             match cmd.to_exitcode() {
                 Ok(()) => true,
                 Err(1) => false,
+                // TODO write a better error message if container quits early
                 // this really should not happen unless something breaks
                 Err(x) => panic!("Error while checking container initialization ({})", x),
             }
         };
 
-        // wait until container finishes
+        // wait until container finishes initialization
         while !is_initialized() {
             std::thread::sleep(std::time::Duration::from_millis(1000));
         }

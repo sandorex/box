@@ -75,6 +75,10 @@ pub struct CmdStartArgs {
     #[arg(short, long, value_name = "DIRECTORY")]
     pub mount: Vec<String>,
 
+    /// Paths to persist between container invocation by mounting a volume
+    #[arg(short, long, value_name = "DIRECTORY:VOLUME_NAME", value_parser = parse_persist)]
+    pub persist: Vec<(String, String)>,
+
     /// Environment variables to set inside the container
     #[arg(short, long, value_name = "VAR=VALUE")]
     pub env: Vec<String>,
@@ -86,6 +90,14 @@ pub struct CmdStartArgs {
     /// Pass rest of args to engine verbatim
     #[arg(last = true)]
     pub engine_args: Vec<String>,
+}
+
+fn parse_persist(input: &str) -> Result<(String, String), String> {
+    match input.split_once(":") {
+        Some((_, "") | ("", _)) => Err("Empty value".to_string()),
+        Some((left, right)) => Ok((left.to_string(), right.to_string())),
+        None => Err("Invalid format".to_string()),
+    }
 }
 
 #[derive(Args, Debug, Clone)]
@@ -150,9 +162,8 @@ pub struct CmdKillArgs {
 
 #[derive(Args, Debug, Clone)]
 pub struct CmdInitArgs {
-    /// Execute commands on init
-    #[arg(last = true)]
-    pub on_init: Vec<String>,
+    /// BASE64 encoded BSON data
+    pub args: String,
 }
 
 #[derive(Subcommand, Debug)]
