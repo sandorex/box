@@ -16,8 +16,8 @@ pub struct InitArgs {
     /// Commands to run on init
     pub on_init: Vec<String>,
 
-    // Persist paths no volume name
-    pub persist: Vec<String>,
+    /// Make paths owned by the user
+    pub user_chown_paths: Vec<String>,
 }
 
 impl InitArgs {
@@ -115,8 +115,7 @@ fn initialization(args: &InitArgs) -> ExitResult {
     let gid_u: u32 = gid.parse().unwrap();
 
     // TODO might have to chown all path segments?
-    // chown persist volumes
-    for path in &args.persist {
+    for path in &args.user_chown_paths {
         chown(path, Some(uid_u), Some(gid_u)).unwrap();
     }
 

@@ -389,8 +389,11 @@ pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStar
         let init_args = InitArgs {
             on_init: cli_args.on_init,
 
-            // take only the paths
-            persist: cli_args.persist.iter().map(|x| x.0.clone()).collect(),
+            // chown persist paths that are in home directory
+            user_chown_paths: cli_args.persist.iter()
+                                              .filter(|x| x.0.starts_with(&home_dir))
+                                              .map(|x| x.0.clone())
+                                              .collect(),
         };
 
         match init_args.encode() {
@@ -435,7 +438,7 @@ pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStar
 
         // as the initialization can take a second or two this prevents broken dotfiles with shell
         // command when you type quickly
-        let is_initialized = || -> bool {
+        let is_initialized = || -> Result<bool, u8> {
             let cmd = Command::new(&engine.path)
                 .arg("exec")
                 .arg(id)
@@ -444,16 +447,20 @@ pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStar
                 .expect(crate::ENGINE_ERR_MSG);
 
             match cmd.to_exitcode() {
-                Ok(()) => true,
-                Err(1) => false,
-                // TODO write a better error message if container quits early
+                Ok(()) => Ok(true),
+                Err(1) => Ok(false),
+                Err(125) => {
+                    eprintln!("Container has exited unexpectedly (125)");
+                    Err(1)
+                }
+
                 // this really should not happen unless something breaks
                 Err(x) => panic!("Error while checking container initialization ({})", x),
             }
         };
 
         // wait until container finishes initialization
-        while !is_initialized() {
+        while !is_initialized()? {
             std::thread::sleep(std::time::Duration::from_millis(1000));
         }
 
