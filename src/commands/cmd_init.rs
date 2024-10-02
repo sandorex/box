@@ -13,11 +13,8 @@ use base64::prelude::*;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, PartialEq)]
 pub struct InitArgs {
-    /// Commands to run on init
-    pub on_init: Vec<String>,
-
-    /// Make paths owned by the user
-    pub user_chown_paths: Vec<String>,
+    pub on_init_pre: Vec<String>,
+    pub on_init_post: Vec<String>,
 }
 
 impl InitArgs {
@@ -101,7 +98,7 @@ fn make_executable(path: &Path) -> Result<(), std::io::Error> {
 }
 
 // TODO create /tmp/.X11-unix just so its properly owned by root? and has correct permissions?
-fn initialization(args: &InitArgs) -> ExitResult {
+fn initialization(_args: &InitArgs) -> ExitResult {
     println!("{} {}", env!("CARGO_BIN_NAME"), FULL_VERSION);
 
     let user = std::env::var("HOST_USER")
@@ -150,25 +147,6 @@ fn initialization(args: &InitArgs) -> ExitResult {
             .status()
             .expect("Error executing usermod")
             .to_exitcode()?;
-    }
-
-    // TODO im not sure i like this approach, its too much hidden functionality as the user wont
-    // know anything about it unless there is a paragraph in the help
-    for path in &args.user_chown_paths {
-        // if in home chown all the parent directories
-        if path.starts_with(&home) {
-            let path = Path::new(path);
-
-            // chown all the parents
-            let mut curr_path = Some(path);
-            while curr_path.is_some() && curr_path.unwrap() != Path::new(&home) {
-                chown(curr_path.unwrap(), Some(uid_u), Some(gid_u)).unwrap();
-
-                curr_path = curr_path.unwrap().parent();
-            }
-        } else {
-            chown(path, Some(uid_u), Some(gid_u)).unwrap();
-        }
     }
 
     println!("Setting up the user home");
@@ -365,11 +343,22 @@ pub fn container_init(cli_args: cli::CmdInitArgs) -> ExitResult {
         r.store(false, Ordering::SeqCst);
     }).expect("Error while setting signal handler");
 
-    if !args.on_init.is_empty() {
-        let path = Path::new("/init.d/99_on_init.sh");
+    if !args.on_init_pre.is_empty() {
+        let path = Path::new("/init.d/00_on_init_pre.sh");
+
         // write the init commands to single file
         fs::write(path, "#!/bin/sh").unwrap();
-        fs::write(path, args.on_init.join("\n")).unwrap();
+        fs::write(path, args.on_init_pre.join("\n")).unwrap();
+
+        make_executable(path).unwrap();
+    }
+
+    if !args.on_init_post.is_empty() {
+        let path = Path::new("/init.d/99_on_init_post.sh");
+
+        // write the init commands to single file
+        fs::write(path, "#!/bin/sh").unwrap();
+        fs::write(path, args.on_init_post.join("\n")).unwrap();
 
         make_executable(path).unwrap();
     }

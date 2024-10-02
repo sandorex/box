@@ -94,44 +94,38 @@ code_docs_struct! {
         /// Optional name to set for the container, otherwise randomly generated
         pub container_name: Option<String>,
 
-        /// Dotfiles directory to use as /etc/skel
+        /// Optional path to directory to use as /etc/skel (static dotfiles)
         ///
         /// Environ vars are expanded
         pub skel: Option<String>,
 
-        /// Should the container have access to internet
+        /// Set network access
         #[serde(default)]
         pub network: bool,
 
-        /// Try to pass audio into the the container, security impact is unknown
+        /// Passthrough pulseaudio, security impact is unknown
         #[serde(default)]
         pub audio: bool,
 
-        /// Passes wayland compositor through, pokes holes in sandbox, allows r/w access to clipboard
+        /// Passthrough wayland compositor socket, high security impact, allows clipboard access
         #[serde(default)]
         pub wayland: bool,
 
-        /// Pass through ssh-agent socket
+        /// Passthrough ssh-agent socket, security impact is unknown
         #[serde(default)]
         pub ssh_agent: bool,
 
-        /// Pass through session dbus socket
+        /// Passthrough D-BUS session bus, maximum security impact allows arbitrary code execution
         #[serde(default)]
         pub session_bus: bool,
 
-        /// Run command on init (ran using `/bin/sh`)
+        /// Run command before all other scripts (ran using `/bin/sh`)
         #[serde(default)]
-        pub on_init: Vec<String>,
+        pub on_init_pre: Vec<String>,
 
-        /// Copies files to container as init scripts (places them in `/init.d/`)
+        /// Run command after all other scripts (ran using `/bin/sh`)
         #[serde(default)]
-        pub on_init_file: Vec<String>,
-
-        /// Paths to persist between container invocation by mounting a volume
-        ///
-        /// Environ vars are expanded
-        #[serde(default)]
-        pub persist: Vec<(String, String)>,
+        pub on_init_post: Vec<String>,
 
         /// Environment variables to set
         ///
