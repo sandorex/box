@@ -114,11 +114,6 @@ fn initialization(args: &InitArgs) -> ExitResult {
     let uid_u: u32 = uid.parse().unwrap();
     let gid_u: u32 = gid.parse().unwrap();
 
-    // TODO might have to chown all path segments?
-    for path in &args.user_chown_paths {
-        chown(path, Some(uid_u), Some(gid_u)).unwrap();
-    }
-
     let home = format!("/home/{}", user);
     let shell = find_preferred_shell();
 
@@ -155,6 +150,25 @@ fn initialization(args: &InitArgs) -> ExitResult {
             .status()
             .expect("Error executing usermod")
             .to_exitcode()?;
+    }
+
+    // TODO im not sure i like this approach, its too much hidden functionality as the user wont
+    // know anything about it unless there is a paragraph in the help
+    for path in &args.user_chown_paths {
+        // if in home chown all the parent directories
+        if path.starts_with(&home) {
+            let path = Path::new(path);
+
+            // chown all the parents
+            let mut curr_path = Some(path);
+            while curr_path.is_some() && curr_path.unwrap() != Path::new(&home) {
+                chown(curr_path.unwrap(), Some(uid_u), Some(gid_u)).unwrap();
+
+                curr_path = curr_path.unwrap().parent();
+            }
+        } else {
+            chown(path, Some(uid_u), Some(gid_u)).unwrap();
+        }
     }
 
     println!("Setting up the user home");
