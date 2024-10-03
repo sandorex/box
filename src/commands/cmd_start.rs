@@ -132,7 +132,6 @@ pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStar
             ("CONTAINER", container_name.as_str()),
         ]);
 
-        let get_home = || -> Option<String> { Some(home_dir.clone()) };
         let context_getter = |input: &str| -> Option<String> {
             // prioritize the environ map above then get actual environ vars
             environ.get(input)
@@ -142,14 +141,14 @@ pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStar
 
         // expand vars in engine args and append to cli args
         for i in config.engine_args.iter().chain(config.get_engine_args(&engine).iter()) {
-            let expanded = shellexpand::full_with_context_no_errors(&i, get_home, context_getter);
+            let expanded = shellexpand::env_with_context_no_errors(&i, context_getter);
             cli_args.engine_args.push(expanded.to_string());
         }
 
         // cli skel takes priority
         if cli_args.skel.is_none() {
             if let Some(skel) = config.skel {
-                let expanded = shellexpand::full_with_context_no_errors(&skel, get_home, context_getter);
+                let expanded = shellexpand::env_with_context_no_errors(&skel, context_getter);
 
                 cli_args.skel = Some(expanded.to_string());
             }
@@ -158,7 +157,7 @@ pub fn start_container(engine: Engine, dry_run: bool, mut cli_args: cli::CmdStar
         // expand env as well for some fun dynamic shennanigans
         for (k, v) in &config.env {
             let mapped = format!("{k}={v}");
-            let expanded = shellexpand::full_with_context_no_errors(&mapped, get_home, context_getter);
+            let expanded = shellexpand::env_with_context_no_errors(&mapped, context_getter);
             cli_args.env.push(expanded.to_string());
         }
 
